@@ -241,6 +241,42 @@ public class SSDBUnderFileSystem {
     private String trimPath(String path) {
         return path.substring(1);
     }
-    
 
+
+    public boolean delete(String path) {
+        SffsFileSystem.LOG.error("delete()方法执行 path="+path);
+        path = trimPath(path);
+        deleteRecv(path);
+        return true;
+    }
+
+    private void deleteRecv(String path) {
+        String uuid = SSDBUnderFileSystem.SEPARATOR + String.valueOf(SConUtils.GetHash(path));
+        String pathIndexKey = path + uuid + SSDBUnderFileSystem.INDEX + "::0";
+        RedisConnection<String, String> connection = getConnection(path);
+        List<String> subPaths = connection.hkeys(pathIndexKey);
+        String metaKey = path + uuid + SSDBUnderFileSystem.METADATA;
+        if(subPaths != null && subPaths.size() != 0) {
+            for (String subPath : subPaths) {
+                deleteRecv(subPath);
+            }
+        }
+        RedisConnection<String, byte[]> dataConnection = getDataConnection(path);
+        dataConnection.del(path + uuid +SSDBUnderFileSystem.FILEDATA);
+        connection.del(metaKey + "::a", metaKey + "::c", metaKey + "::w");
+        connection.del(pathIndexKey);
+        String parentPath = getParentPath(path);
+        if (parentPath != null) {
+            String parUuid = SSDBUnderFileSystem.SEPARATOR + String.valueOf(SConUtils.GetHash(parentPath));
+            String parIndexKey = parentPath + parUuid + SSDBUnderFileSystem.INDEX + "::0";
+            RedisConnection<String, String> parConnection = getConnection(parentPath);
+            parConnection.hdel(parIndexKey, path);
+        }
+
+    }
+
+    private RedisConnection<String,byte[]> getDataConnection(String path) {
+        String server = SConHashClient.getRealServer(path);
+        return clients.get(server).dataConnection;
+    }
 }

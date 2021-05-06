@@ -54,12 +54,14 @@ public class RfsFileOutputStream extends OutputStream {
             return;
         }
         String parentPath = getParentPath(pathInfo.getPathName());
-        String parUuid = SSDBUnderFileSystem.SEPARATOR +
-                String.valueOf(SConUtils.GetHash(parentPath));
-        String patIndexKey = parentPath + parUuid + SSDBUnderFileSystem.INDEX + "::0";
-        RedisConnection<String, String> parConnection = getConnection(parentPath);
-        // "1表示文件 0表示目录"
-        parConnection.hset(patIndexKey, pathInfo.getPathName(), "1");
+        if (parentPath != null) {
+            String parUuid = SSDBUnderFileSystem.SEPARATOR +
+                    String.valueOf(SConUtils.GetHash(parentPath));
+            String patIndexKey = parentPath + parUuid + SSDBUnderFileSystem.INDEX + "::0";
+            RedisConnection<String, String> parConnection = getConnection(parentPath);
+            // "1表示文件 0表示目录"
+            parConnection.hset(patIndexKey, pathInfo.getPathName(), "1");
+        }
         //data
         dataConnection.set(fileKey, Arrays.copyOf(byteBuffer, pointer));
         //metadata
@@ -81,6 +83,9 @@ public class RfsFileOutputStream extends OutputStream {
 
     // checkpointRoot/state/3/199
     private String getParentPath(String path) {
+        if (!path.contains("/")) {
+            return null;
+        }
         return path.substring(0,path.lastIndexOf("/"));
     }
 

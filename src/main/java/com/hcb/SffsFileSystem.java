@@ -150,8 +150,8 @@ public class SffsFileSystem extends FileSystem {
     @Override
     public boolean delete(Path path, boolean recursive) {
 
-        // todo
-        return true;
+
+        return SSDBUnderFileSystem.delete(path.toString());
     }
 
     @Override
